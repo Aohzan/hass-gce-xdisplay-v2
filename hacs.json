@@ -1,5 +1,5 @@
 {
-    "name": "Integration blueprint",
-    "homeassistant": "2024.12.0",
-    "hacs": "2.0.1"
+  "name": "GCE X-Display V2",
+  "homeassistant": "2025.02.0",
+  "hacs": "2.0.1"
 }
