@@ -3,28 +3,28 @@
 from __future__ import annotations
 
 import logging
-from abc import ABC, abstractmethod
 from functools import partial
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from homeassistant.components.mqtt.client import async_publish, async_subscribe
-from homeassistant.components.mqtt.models import ReceiveMessage
+from homeassistant.components.mqtt.client import async_subscribe
 from homeassistant.components.mqtt.util import async_wait_for_mqtt_client
 from homeassistant.const import Platform
-from homeassistant.core import Event, EventStateChangedData, HassJob, HomeAssistant
-from homeassistant.helpers.event import (
-    async_track_state_change_event,
-)
+from homeassistant.core import HomeAssistant
 
 from .const import (
-    CONF_PREFIX_TOPIC,
-    CONF_SCREEN_LINKED_ENTITY,
     CONF_SCREEN_TYPE_NAME,
     CONF_SCREENS,
     DOMAIN,
     XDisplayScreenTypes,
 )
-from .tools_sync import XDisplayButtonSync, XDisplayThermostatSync
+from .tools_sync import (
+    XDisplayButtonSync,
+    XDisplayCoverSync,
+    XDisplayMediaPlayerSync,
+    XDisplaySensorSync,
+    XDisplayThermostatSync,
+    XDisplayWeatherSync,
+)
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -50,7 +50,9 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
 
     # Create screens pub and sub topics
-    for screen_id, screen_options in config.get(CONF_SCREENS, {}).items():
+    if len(config[CONF_SCREENS]) == 0:
+        _LOGGER.error("No screens configured")
+    for screen_id, screen_options in enumerate(config[CONF_SCREENS]):
         _LOGGER.debug("Screen #%s: %s", screen_id, screen_options)
         if screen_options[CONF_SCREEN_TYPE_NAME] == XDisplayScreenTypes.BUTTON.name:
             button_sync = XDisplayButtonSync(
@@ -58,16 +60,24 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
                 config_entry,
                 screen_id,
                 screen_options,
-                suffix_pub="IoCmd",
-                suffix_sub="IoState",
             )
             await async_subscribe(
                 hass=hass,
                 topic=button_sync.topic_sub,
                 msg_callback=button_sync.update_entity,
             )
-            break
-        if screen_options[CONF_SCREEN_TYPE_NAME] == XDisplayScreenTypes.THERMOSTAT.name:
+        elif screen_options[CONF_SCREEN_TYPE_NAME] == XDisplayScreenTypes.COVER.name:
+            cover_sync = XDisplayCoverSync(
+                hass, config_entry, screen_id, screen_options
+            )
+            await async_subscribe(
+                hass=hass,
+                topic=cover_sync.sub_topic_position,
+                msg_callback=cover_sync.update_entity,
+            )
+        elif (
+            screen_options[CONF_SCREEN_TYPE_NAME] == XDisplayScreenTypes.THERMOSTAT.name
+        ):
             thermostat_sync = XDisplayThermostatSync(
                 hass, config_entry, screen_id, screen_options
             )
@@ -86,14 +96,75 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
                     thermostat_sync.update_entity, action="set_hvac_mode"
                 ),
             )
-            break
-        _LOGGER.info(
-            "Screen #%s: %s is not supported or not implemented",
-            screen_id,
-            screen_options[CONF_SCREEN_TYPE_NAME],
-        )
-    else:
-        _LOGGER.debug("No screens configured")
+        elif (
+            screen_options[CONF_SCREEN_TYPE_NAME]
+            == XDisplayScreenTypes.TEMPERATURE.name
+        ):
+            XDisplaySensorSync(hass, config_entry, screen_id, screen_options, "temp")
+        elif screen_options[CONF_SCREEN_TYPE_NAME] == XDisplayScreenTypes.HUMIDITY.name:
+            XDisplaySensorSync(hass, config_entry, screen_id, screen_options, "hum")
+        elif (
+            screen_options[CONF_SCREEN_TYPE_NAME] == XDisplayScreenTypes.LUMINOSITY.name
+        ):
+            XDisplaySensorSync(hass, config_entry, screen_id, screen_options, "lum")
+        elif screen_options[CONF_SCREEN_TYPE_NAME] == XDisplayScreenTypes.WEATHER.name:
+            XDisplayWeatherSync(hass, config_entry, screen_id, screen_options)
+        elif screen_options[CONF_SCREEN_TYPE_NAME] == XDisplayScreenTypes.PLAYER.name:
+            player_sync = XDisplayMediaPlayerSync(
+                hass, config_entry, screen_id, screen_options
+            )
+            await async_subscribe(
+                hass=hass,
+                topic=player_sync.sub_topic_vol_down,
+                msg_callback=partial(player_sync.update_entity, action="volume_down"),
+            )
+            await async_subscribe(
+                hass=hass,
+                topic=player_sync.sub_topic_vol_up,
+                msg_callback=partial(player_sync.update_entity, action="volume_up"),
+            )
+            await async_subscribe(
+                hass=hass,
+                topic=player_sync.sub_topic_mute,
+                msg_callback=partial(player_sync.update_entity, action="volume_mute"),
+            )
+            await async_subscribe(
+                hass=hass,
+                topic=player_sync.sub_topic_next,
+                msg_callback=partial(
+                    player_sync.update_entity, action="media_next_track"
+                ),
+            )
+            await async_subscribe(
+                hass=hass,
+                topic=player_sync.sub_topic_prev,
+                msg_callback=partial(
+                    player_sync.update_entity, action="media_previous_track"
+                ),
+            )
+            await async_subscribe(
+                hass=hass,
+                topic=player_sync.sub_topic_pause,
+                msg_callback=partial(
+                    player_sync.update_entity, action="media_play_pause"
+                ),
+            )
+            await async_subscribe(
+                hass=hass,
+                topic=player_sync.sub_topic_loop,
+                msg_callback=partial(player_sync.update_entity, action="repeat_set"),
+            )
+            await async_subscribe(
+                hass=hass,
+                topic=player_sync.sub_topic_random,
+                msg_callback=partial(player_sync.update_entity, action="shuffle_set"),
+            )
+        else:
+            _LOGGER.info(
+                "Screen #%s: %s is not supported or not implemented",
+                screen_id,
+                screen_options[CONF_SCREEN_TYPE_NAME],
+            )
 
     return True
 

@@ -20,12 +20,7 @@ from homeassistant.config_entries import (
 from homeassistant.const import CONF_DEVICE_ID, CONF_NAME
 from homeassistant.core import callback
 from homeassistant.helpers import device_registry as dr
-
-from custom_components.gce_xdisplay_v2.tools_mqtt import (
-    xdisplay_mqtt_add_screen,
-    xdisplay_mqtt_delete_screen,
-    xdisplay_mqtt_update_screen_name,
-)
+from homeassistant.helpers import selector
 
 from .const import (
     CONF_PREFIX_TOPIC,
@@ -34,9 +29,14 @@ from .const import (
     CONF_SCREEN_TYPE_NAME,
     CONF_SCREENS,
     DOMAIN,
-    MAX_SCREEN_COUNT,
+    XDISPLAY_SCREEN_TYPE_DEVICE_CLASSES,
     XDISPLAY_SCREEN_TYPE_DOMAINS,
     XDisplayScreenTypes,
+)
+from .tools_mqtt import (
+    xdisplay_mqtt_add_screen,
+    xdisplay_mqtt_delete_last_screen,
+    xdisplay_mqtt_update_screen_name,
 )
 
 if TYPE_CHECKING:
@@ -47,7 +47,7 @@ _LOGGER = logging.getLogger(__name__)
 
 DATA_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_PREFIX_TOPIC, default="x-display_80001F/"): str,
+        vol.Required(CONF_PREFIX_TOPIC, default="x-display_"): str,
     }
 )
 
@@ -69,7 +69,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             try:
                 entry_data = {
                     CONF_PREFIX_TOPIC: user_input[CONF_PREFIX_TOPIC].rstrip("/"),
-                    CONF_SCREENS: {},
+                    CONF_SCREENS: [],
                 }
 
                 valid_subscribe_topic(entry_data[CONF_PREFIX_TOPIC] + "/temp")
@@ -109,7 +109,7 @@ class XdisplayOptionsFlowHandler(OptionsFlow):
         self.config = config_entry.data | config_entry.options
         self.screens_list: list = [
             f"{screen_id}-{screen_options[CONF_SCREEN_TYPE_NAME]} {screen_options.get(CONF_NAME, '')}"
-            for screen_id, screen_options in self.config[CONF_SCREENS].items()
+            for screen_id, screen_options in enumerate(self.config[CONF_SCREENS])
         ]
 
     async def async_step_init(
@@ -123,8 +123,7 @@ class XdisplayOptionsFlowHandler(OptionsFlow):
             menu_options={
                 "add_screen": "Add a screen",
                 "update_screen": "Edit a screen",
-                "remove_screen": "Remove a screen",
-                "clean_screens": "Clean all screens (even unmana&ged)",
+                "remove_last_screen": "Remove last screen",
             },
         )
 
@@ -156,17 +155,31 @@ class XdisplayOptionsFlowHandler(OptionsFlow):
     ) -> ConfigFlowResult:
         """Add a screen step 2."""
         errors: dict[str, Any] = {}
-        data_schema = vol.Schema(
-            {
-                vol.Required(
-                    CONF_SCREEN_LINKED_ENTITY,
-                    default="switch.x_display_80001f_screen",  # TODO no default, for debug
-                ): str,
-            }
-        )
+        data_schema = vol.Schema({})
 
         if not self.user_input:
             return await self.async_step_add_screen()
+
+        domains = XDISPLAY_SCREEN_TYPE_DOMAINS[self.user_input[CONF_SCREEN_TYPE_NAME]]
+        # if entity must be linked to the screen
+        if domains:
+            devices_classes = XDISPLAY_SCREEN_TYPE_DEVICE_CLASSES.get(
+                self.user_input[CONF_SCREEN_TYPE_NAME]
+            )
+            if devices_classes:
+                selector_config = selector.EntitySelectorConfig(
+                    domain=domains, device_class=devices_classes
+                )
+            else:
+                selector_config = selector.EntitySelectorConfig(domain=domains)
+
+            data_schema = vol.Schema(
+                {
+                    vol.Required(CONF_SCREEN_LINKED_ENTITY): selector.EntitySelector(
+                        selector_config
+                    ),
+                }
+            )
 
         if not user_input:
             return self.async_show_form(
@@ -175,13 +188,16 @@ class XdisplayOptionsFlowHandler(OptionsFlow):
                 errors=errors,
             )
 
-        if self.hass.states.get(user_input[CONF_SCREEN_LINKED_ENTITY]) is None:
-            errors["base"] = "entity_not_found"
-        if (
-            user_input[CONF_SCREEN_LINKED_ENTITY].split(".")[0]
-            not in XDISPLAY_SCREEN_TYPE_DOMAINS[self.user_input[CONF_SCREEN_TYPE_NAME]]
-        ):
-            errors["base"] = "entity_wrong_domain"
+        if domains:
+            if self.hass.states.get(user_input[CONF_SCREEN_LINKED_ENTITY]) is None:
+                errors["base"] = "entity_not_found"
+            if (
+                user_input[CONF_SCREEN_LINKED_ENTITY].split(".")[0]
+                not in XDISPLAY_SCREEN_TYPE_DOMAINS[
+                    self.user_input[CONF_SCREEN_TYPE_NAME]
+                ]
+            ):
+                errors["base"] = "entity_wrong_domain"
 
         if errors:
             return self.async_show_form(
@@ -189,6 +205,12 @@ class XdisplayOptionsFlowHandler(OptionsFlow):
                 data_schema=data_schema,
                 errors=errors,
             )
+
+        _LOGGER.info(
+            "Adding screen %s linked to %s",
+            self.user_input[CONF_SCREEN_TYPE_NAME],
+            user_input[CONF_SCREEN_LINKED_ENTITY],
+        )
 
         await xdisplay_mqtt_add_screen(
             self.hass,
@@ -241,7 +263,7 @@ class XdisplayOptionsFlowHandler(OptionsFlow):
         if not self.user_input:
             return await self.async_step_update_screen()
 
-        screen_id = self.user_input[CONF_SCREEN_ID].split("-")[0]
+        screen_id = int(self.user_input[CONF_SCREEN_ID].split("-")[0])
 
         screen_config: dict[str, Any] = self.config_entry.data[CONF_SCREENS][screen_id]
 
@@ -263,6 +285,12 @@ class XdisplayOptionsFlowHandler(OptionsFlow):
                 errors=errors,
             )
 
+        _LOGGER.info(
+            "Updating screen #%s name to %s",
+            screen_id,
+            user_input[CONF_NAME],
+        )
+
         await xdisplay_mqtt_update_screen_name(
             self.hass,
             prefix_topic=self.config_entry.data[CONF_PREFIX_TOPIC],
@@ -277,86 +305,53 @@ class XdisplayOptionsFlowHandler(OptionsFlow):
 
         return self.async_create_entry(title="", data={})
 
-    async def async_step_remove_screen(
+    async def async_step_remove_last_screen(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Remove a screen."""
-        errors: dict[str, Any] = {}
-
-        if not self.screens_list:
-            return self.async_abort(
-                reason="no_screens",
-            )
-
-        data_schema = vol.Schema(
-            {vol.Required(CONF_SCREEN_ID): vol.In(self.screens_list)}
-        )
-
-        if user_input is None:
-            return self.async_show_form(
-                step_id="remove_screen",
-                data_schema=data_schema,
-                errors=errors,
-            )
-
-        screen_id = int(user_input[CONF_SCREEN_ID].split("-")[0])
-
-        _LOGGER.debug("Delete screen #%s", screen_id)
-
-        await xdisplay_mqtt_delete_screen(
-            self.hass,
-            self.config_entry.data[CONF_PREFIX_TOPIC],
-            screen_id,
-        )
-
-        self.update_screen_config_data(screen_id=screen_id)
-
-        return self.async_create_entry(title="", data={})
-
-    async def async_step_clean_screens(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Clean all screens."""
         if user_input is None or not user_input.get("confirm"):
             return self.async_show_form(
-                step_id="clean_screens",
+                step_id="remove_last_screen",
                 data_schema=vol.Schema({vol.Required("confirm"): bool}),
             )
 
-        for i in range(MAX_SCREEN_COUNT, -1, -1):
-            _LOGGER.debug("Deleting screen #%s", i)
-            await xdisplay_mqtt_delete_screen(
-                self.hass, self.config_entry.data[CONF_PREFIX_TOPIC], i
-            )
+        _LOGGER.info(
+            "Removing last screen from %s", self.config_entry.data[CONF_PREFIX_TOPIC]
+        )
+
+        await xdisplay_mqtt_delete_last_screen(
+            self.hass, self.config_entry.data[CONF_PREFIX_TOPIC]
+        )
+
+        self.update_screen_config_data()
 
         return self.async_create_entry(title="", data={})
 
     @callback
     def update_screen_config_data(
         self,
-        screen_id: str | None = None,
+        screen_id: int | None = None,
         options: dict[str, Any] | None = None,
     ) -> None:
         """Update data in ConfigEntry."""
         entry_data = self.config_entry.data.copy()
-        entry_data[CONF_SCREENS] = copy.deepcopy(self.config_entry.data[CONF_SCREENS])
+        entry_data[CONF_SCREENS] = copy.deepcopy(
+            list(self.config_entry.data[CONF_SCREENS])
+        )
 
-        if screen_id is None:
-            screen_id = next(
-                str(i)
-                for i in list(range(MAX_SCREEN_COUNT))
-                if str(i) not in entry_data[CONF_SCREENS]
-            )
+        if not options:
+            _LOGGER.debug("Deleting last screen")
+            if len(entry_data[CONF_SCREENS]) > 0:
+                del entry_data[CONF_SCREENS][-1]
+        elif screen_id is None:
             _LOGGER.debug("Adding screen #%s", screen_id)
-            entry_data[CONF_SCREENS][screen_id] = options
-        elif not options:
-            _LOGGER.debug("Deleting screen #%s", screen_id)
-            entry_data[CONF_SCREENS].pop(screen_id)
+            entry_data[CONF_SCREENS].append(options)
         else:
             _LOGGER.debug("Updating screen #%s", screen_id)
             entry_data[CONF_SCREENS][screen_id] = (
                 entry_data[CONF_SCREENS][screen_id] | options
             )
+
         self.hass.config_entries.async_update_entry(self.config_entry, data=entry_data)
         self.hass.async_create_task(
             self.hass.config_entries.async_reload(self.config_entry.entry_id)

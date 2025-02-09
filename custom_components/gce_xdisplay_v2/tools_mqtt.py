@@ -12,18 +12,14 @@ async def xdisplay_mqtt_add_screen(
     screen_type: XDisplayScreenTypes,
 ) -> None:
     """Create a new screen."""
-    await async_publish(hass, f"{prefix_topic}/new", screen_type.value, retain=False)
+    await async_publish(hass, f"{prefix_topic}/new", screen_type.value)
 
 
-async def xdisplay_mqtt_delete_screen(
-    hass: HomeAssistant, prefix_topic: str, screen_id: int
+async def xdisplay_mqtt_delete_last_screen(
+    hass: HomeAssistant, prefix_topic: str
 ) -> None:
     """Delete a screen."""
-    await async_publish(
-        hass,
-        f"{prefix_topic}/{screen_id}/delete",
-        "",
-    )
+    await async_publish(hass, f"{prefix_topic}/delete", None)
 
 
 async def xdisplay_mqtt_update_screen_name(

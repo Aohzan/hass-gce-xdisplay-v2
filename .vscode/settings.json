@@ -17,5 +17,11 @@
             ],
             "url": "./script/json_schemas/manifest_schema.json"
         }
-    ]
+    ],
+    "[markdown]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "files.associations": {
+        "*.yaml": "home-assistant"
+    }
 }
