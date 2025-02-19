@@ -17,14 +17,13 @@ from .const import (
     DOMAIN,
     XDisplayScreenTypes,
 )
-from .tools_sync import (
-    XDisplayButtonSync,
-    XDisplayCoverSync,
-    XDisplayMediaPlayerSync,
-    XDisplaySensorSync,
-    XDisplayThermostatSync,
-    XDisplayWeatherSync,
-)
+from .sync.button import XDisplayButtonSync
+from .sync.cover import XDisplayCoverSync
+from .sync.energy import XDisplayEnergySync
+from .sync.media_player import XDisplayMediaPlayerSync
+from .sync.sensor import XDisplaySensorSync
+from .sync.thermostat import XDisplayThermostatSync
+from .sync.weather import XDisplayWeatherSync
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -159,6 +158,9 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
                 topic=player_sync.sub_topic_random,
                 msg_callback=partial(player_sync.update_entity, action="shuffle_set"),
             )
+        elif screen_options[CONF_SCREEN_TYPE_NAME] == XDisplayScreenTypes.ENERGY.name:
+            energy = XDisplayEnergySync(hass, config_entry, screen_id, screen_options)
+            await energy.initialize()
         else:
             _LOGGER.info(
                 "Screen #%s: %s is not supported or not implemented",

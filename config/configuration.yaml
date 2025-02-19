@@ -24,3 +24,12 @@ cover:
           action: automation.reload
         stop_cover:
           action: automation.reload
+
+template:
+  - sensor:
+      - name: "Conso elec"
+        unique_id: "conso_elec"
+        unit_of_measurement: "Wh"
+        device_class: energy
+        state_class: total
+        state: "{{ as_timestamp(now()) | int }}"

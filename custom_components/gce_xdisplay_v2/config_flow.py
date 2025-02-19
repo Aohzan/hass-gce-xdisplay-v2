@@ -33,7 +33,7 @@ from .const import (
     XDISPLAY_SCREEN_TYPE_DOMAINS,
     XDisplayScreenTypes,
 )
-from .tools_mqtt import (
+from .mqtt import (
     xdisplay_mqtt_add_screen,
     xdisplay_mqtt_delete_last_screen,
     xdisplay_mqtt_update_screen_name,
@@ -155,7 +155,11 @@ class XdisplayOptionsFlowHandler(OptionsFlow):
     ) -> ConfigFlowResult:
         """Add a screen step 2."""
         errors: dict[str, Any] = {}
-        data_schema = vol.Schema({})
+        data_schema = vol.Schema(
+            {
+                vol.Optional(CONF_NAME): str,
+            }
+        )
 
         if not self.user_input:
             return await self.async_step_add_screen()
@@ -173,7 +177,7 @@ class XdisplayOptionsFlowHandler(OptionsFlow):
             else:
                 selector_config = selector.EntitySelectorConfig(domain=domains)
 
-            data_schema = vol.Schema(
+            data_schema = data_schema.extend(
                 {
                     vol.Required(CONF_SCREEN_LINKED_ENTITY): selector.EntitySelector(
                         selector_config
@@ -206,11 +210,17 @@ class XdisplayOptionsFlowHandler(OptionsFlow):
                 errors=errors,
             )
 
-        _LOGGER.info(
-            "Adding screen %s linked to %s",
-            self.user_input[CONF_SCREEN_TYPE_NAME],
-            user_input[CONF_SCREEN_LINKED_ENTITY],
-        )
+        if CONF_SCREEN_LINKED_ENTITY in user_input:
+            _LOGGER.info(
+                "Adding screen %s linked to %s",
+                self.user_input[CONF_SCREEN_TYPE_NAME],
+                user_input[CONF_SCREEN_LINKED_ENTITY],
+            )
+        else:
+            _LOGGER.info(
+                "Adding screen %s",
+                self.user_input[CONF_SCREEN_TYPE_NAME],
+            )
 
         await xdisplay_mqtt_add_screen(
             self.hass,
@@ -222,10 +232,18 @@ class XdisplayOptionsFlowHandler(OptionsFlow):
             screen_id=None,
             options={
                 CONF_SCREEN_TYPE_NAME: self.user_input[CONF_SCREEN_TYPE_NAME],
-                CONF_SCREEN_LINKED_ENTITY: user_input[CONF_SCREEN_LINKED_ENTITY],
-                CONF_NAME: "",
+                CONF_SCREEN_LINKED_ENTITY: user_input.get(CONF_SCREEN_LINKED_ENTITY),
+                CONF_NAME: user_input.get(CONF_NAME),
             },
         )
+
+        if CONF_NAME in user_input:
+            await xdisplay_mqtt_update_screen_name(
+                self.hass,
+                prefix_topic=self.config_entry.data[CONF_PREFIX_TOPIC],
+                screen_id=len(self.config_entry.data[CONF_SCREENS]),
+                screen_name=user_input[CONF_NAME],
+            )
 
         return self.async_create_entry(title="", data={})
 
