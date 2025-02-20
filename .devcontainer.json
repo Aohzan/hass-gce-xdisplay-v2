@@ -1,7 +1,12 @@
 {
-    "name": "ludeeus/integration_blueprint",
-    "image": "mcr.microsoft.com/devcontainers/python:3.12",
+    "name": "aohzan/gce-xdisplay-v2",
+    "image": "mcr.microsoft.com/devcontainers/python:3.13",
     "postCreateCommand": "scripts/setup",
+    "runArgs": [
+        "--userns=keep-id:uid=1000,gid=1000"
+    ],
+    "containerUser": "vscode",
+    "updateRemoteUserUID": true,
     "forwardPorts": [
         8123
     ],

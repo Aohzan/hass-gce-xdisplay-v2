@@ -1,0 +1,12 @@
+{
+  "domain": "gce_xdisplay_v2",
+  "name": "GCE X-Display V2",
+  "codeowners": ["@Aohzan"],
+  "config_flow": true,
+  "dependencies": ["mqtt", "energy", "recorder"],
+  "documentation": "https://github.com/Aohzan/hass-gce-xdisplay-v2",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/Aohzan/hass-gce-xdisplay-v2/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}
