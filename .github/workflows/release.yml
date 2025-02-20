@@ -13,6 +13,7 @@ jobs:
 
   validate:
     uses: ./.github/workflows/validate.yml
+
   release:
     name: Release
     runs-on: ubuntu-latest
