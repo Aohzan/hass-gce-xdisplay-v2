@@ -2,17 +2,21 @@
 
 Sync X-Display's screens with Home-Assistant entities through MQTT.
 
-Supported
+Screen supported:
 
-- Button with switch or light entity
-- Player with media_player entity
-- Thermostat with climate entity
+- Bouton with `switch` or `light` entity
+- Player with `media_player` entity
+- Thermostat with `climate` entity
+- Volet with `cover` entity
+- Energie with your Energy dashboard statistics
 
-You can control the screen (on/off, lock, off delay) and get the temperature.
+You can control the screen (on/off, lock, off delay) and get the temperature with dedicated entities.
 
 ## Requirements
 
 The X-Display must be connected to the same MQTT broker as Home-Assistant.
+
+All screens must be managed by the integration, so you have to delete all those you made before.
 
 ## Installation
 

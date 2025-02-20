@@ -108,13 +108,12 @@ class XdisplayOptionsFlowHandler(OptionsFlow):
         self.user_input: dict[str, Any] | None = None
         self.config = config_entry.data | config_entry.options
         self.screens_list: list = [
-            f"{screen_id}-{screen_options[CONF_SCREEN_TYPE_NAME]} {screen_options.get(CONF_NAME, '')}"
+            f"{screen_id}-{screen_options[CONF_SCREEN_TYPE_NAME]} "
+            f"{screen_options.get(CONF_NAME, '')}"
             for screen_id, screen_options in enumerate(self.config[CONF_SCREENS])
         ]
 
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_init(self) -> ConfigFlowResult:
         """Manage the options."""
         self.device_registry = dr.async_get(self.hass)
 

@@ -50,7 +50,8 @@ class XDisplayThermostatSync(XDisplaySync):
         self.pub_topic_turned_on = f"{self.topic_prefix}/ThermoOnOff"
         self.pub_topic_heating = f"{self.topic_prefix}/ThermoOutput"
         self.sub_topic_turned_on = f"{self.topic_prefix}/IoState"
-        self.sub_topic_target_temp_reply = f"{self.topic_prefix}/ThCmdReply"  # Not used, return the confirmation of the command
+        # Not used, return the confirmation of the command
+        self.sub_topic_target_temp_reply = f"{self.topic_prefix}/ThCmdReply"
 
         async_track_state_change_event(
             hass, [screen_config[CONF_SCREEN_LINKED_ENTITY]], self.update_xdisplay

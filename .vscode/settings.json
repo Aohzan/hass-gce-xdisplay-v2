@@ -23,5 +23,8 @@
     },
     "files.associations": {
         "*.yaml": "home-assistant"
+    },
+    "[shellscript]": {
+        "editor.defaultFormatter": "foxundermoon.shell-format"
     }
 }

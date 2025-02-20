@@ -61,7 +61,9 @@ class XDisplayWeatherSync(XDisplaySync):
         self.pub_topic_hum = f"{self.topic_prefix}/Wthum"
         self.pub_topic_temp = f"{self.topic_prefix}/Whtemp"
         self.pub_topic_wind = f"{self.topic_prefix}/Whwind"
-        self.pub_topic_level = f"{self.topic_prefix}/WhLevel"  # Data : 0 (soleil), 1(éclaircie), 2(nuage), 3(brouillard), 4(pluie), 5(orage), 6(neige)
+        # Data : 0 (soleil), 1(éclaircie), 2(nuage)…
+        # … 3(brouillard), 4(pluie), 5(orage), 6(neige)
+        self.pub_topic_level = f"{self.topic_prefix}/WhLevel"
         self.pub_topic_pressure = f"{self.topic_prefix}/WhPressure"
         self.pub_topic_sunrise = f"{self.topic_prefix}/WhSunrise"
         self.pub_topic_sunset = f"{self.topic_prefix}/WhSunset"
@@ -140,46 +142,6 @@ class XDisplayWeatherSync(XDisplaySync):
             self.pub_topic_pressure,
             to_state.attributes["pressure"],
         )
-        # await async_publish(
-        #     self.hass,
-        #     self.pub_topic_sunrise,
-        #     to_state.attributes["sunrise"],
-        # )
-        # await async_publish(
-        #     self.hass,
-        #     self.pub_topic_sunset,
-        #     to_state.attributes["sunset"],
-        # )
-        # await async_publish(
-        #     self.hass,
-        #     self.pub_topic_temp_d1,
-        #     to_state.attributes["forecast_temp_day_1"],
-        # )
-        # await async_publish(
-        #     self.hass,
-        #     self.pub_topic_level_d1,
-        #     0,
-        # )
-        # await async_publish(
-        #     self.hass,
-        #     self.pub_topic_temp_d2,
-        #     to_state.attributes["forecast_temp_day_2"],
-        # )
-        # await async_publish(
-        #     self.hass,
-        #     self.pub_topic_level_d2,
-        #     0,
-        # )
-        # await async_publish(
-        #     self.hass,
-        #     self.pub_topic_temp_d3,
-        #     to_state.attributes["forecast_temp_day_3"],
-        # )
-        # await async_publish(
-        #     self.hass,
-        #     self.pub_topic_level_d3,
-        #     0,
-        # )
 
     async def update_entity(self, msg: ReceiveMessage, action: str) -> None:
         """Read only."""
