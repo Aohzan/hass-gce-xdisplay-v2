@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+set -e
+
+if [ $# -ne 1 ]; then
+    echo "Missing version"
+    echo "Usage: $0 version"
+    exit 1
+fi
+
+ROOT=$(realpath "$(dirname "$0")/..")
+NEXT_VERSION="$1"
+COMPONENT="${ROOT}/custom_components/gce_xdisplay_v2"
+MANIFEST=${COMPONENT}/manifest.json
+ZIPFILE="${ROOT}/gce_xdisplay_v2.zip"
+
+cat <<<$(jq ".version=\"${NEXT_VERSION}\"" "${MANIFEST}") >"${MANIFEST}"
+cd "${COMPONENT}" && zip ${ZIPFILE} -r ./
