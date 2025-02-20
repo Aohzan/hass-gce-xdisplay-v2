@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from homeassistant.components.mqtt.client import async_publish
 from homeassistant.components.switch import SwitchEntity
@@ -38,7 +38,7 @@ class XdisplaySwitch(XdisplayEntity, SwitchEntity):
         """Return the state of the switch."""
         return self._mqtt_value == self.entity_description.payload_on
 
-    async def async_turn_on(self, **kwargs: Any) -> None:
+    async def async_turn_on(self) -> None:
         """Turn the device on."""
         await async_publish(
             self.hass,
@@ -48,7 +48,7 @@ class XdisplaySwitch(XdisplayEntity, SwitchEntity):
             self.entity_description.retain,
         )
 
-    async def async_turn_off(self, **kwargs: Any) -> None:
+    async def async_turn_off(self) -> None:
         """Turn the device off."""
         await async_publish(
             self.hass,

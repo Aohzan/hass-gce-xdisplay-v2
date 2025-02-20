@@ -34,7 +34,7 @@ PLATFORMS = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER]
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:  # noqa: PLR0912
     """Set up entry."""
     hass.data.setdefault(DOMAIN, {})
 

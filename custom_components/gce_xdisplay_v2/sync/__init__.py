@@ -2,49 +2,15 @@
 
 from __future__ import annotations
 
-import datetime
-import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
-import pytz
-from homeassistant.components.climate.const import HVACAction, HVACMode
-from homeassistant.components.energy.data import (
-    EnergyManager,
-    EnergyPreferences,
-    async_get_manager,
-)
-from homeassistant.components.mqtt.client import async_publish
-from homeassistant.components.recorder.statistics import (
-    statistics_during_period,
-)
-from homeassistant.components.weather import (
-    ATTR_CONDITION_CLEAR_NIGHT,
-    ATTR_CONDITION_CLOUDY,
-    ATTR_CONDITION_FOG,
-    ATTR_CONDITION_HAIL,
-    ATTR_CONDITION_LIGHTNING,
-    ATTR_CONDITION_LIGHTNING_RAINY,
-    ATTR_CONDITION_PARTLYCLOUDY,
-    ATTR_CONDITION_POURING,
-    ATTR_CONDITION_RAINY,
-    ATTR_CONDITION_SNOWY,
-    ATTR_CONDITION_SNOWY_RAINY,
-    ATTR_CONDITION_SUNNY,
-    ATTR_CONDITION_WINDY,
-    ATTR_CONDITION_WINDY_VARIANT,
-)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.event import (
-    async_track_state_change_event,
-)
-from homeassistant.helpers.recorder import get_instance
 
 from custom_components.gce_xdisplay_v2.const import (
     CONF_PREFIX_TOPIC,
-    CONF_SCREEN_LINKED_ENTITY,
 )
 
 if TYPE_CHECKING:
@@ -53,8 +19,6 @@ if TYPE_CHECKING:
     from homeassistant.core import Event, EventStateChangedData, HomeAssistant
 
 PLATFORMS = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER]
-
-_LOGGER = logging.getLogger(__name__)
 
 
 class XDisplaySync(ABC):
